@@ -1,0 +1,55 @@
+
+//LOAD NODES
+LOAD CSV WITH HEADERS FROM 'file:///nodes.csv' AS row
+MERGE (node:Node {node_id: toInteger(row.node_id)})
+ON CREATE SET
+  node.node_name = row.node_name,
+  node.is_source = toInteger(row.is_source),
+  node.is_destination = toInteger(row.is_destination),
+  node.node_status = toInteger(row.node_status),
+  node.cost = toInteger(row.cost);
+
+
+//CREATE RELATIONSHIPS
+LOAD CSV WITH HEADERS FROM 'file:///edges.csv' AS row
+MATCH (source:Node {node_id: toInteger(row.from_id)})
+MATCH (target:Node {node_id: toInteger(row.to_id)})
+CREATE (source)-[r:CONNECTIONS {edge_id: toInteger(row.edge_id), cost: toInteger(row.cost), edge_status: toInteger(row.edge_status)}]->(target);
+
+
+
+
+//PROJECT GRAPH
+
+CALL gds.graph.project(
+    'myGraph',
+    'Node',
+    'CONNECTIONS',
+    {
+        relationshipProperties: 'cost'
+    }
+)
+
+
+//RUN K SHORTEST PATH
+MATCH (source:Node {node_name: 'SOURCE_7'}), (target:Node {node_name: 'DEST_LOAD'})
+CALL gds.shortestPath.yens.stream('myGraph', {
+    sourceNode: source,
+    targetNode: target,
+    k: 5,
+    relationshipWeightProperty: 'cost'
+})
+YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path
+WITH index, sourceNode, targetNode, totalCost, nodeIds, costs, path
+RETURN
+    index,
+    gds.util.asNode(sourceNode).node_name AS sourceNodeName,
+    gds.util.asNode(targetNode).node_name AS targetNodeName,
+    totalCost + reduce(s = 0, nodeId IN nodeIds | s + gds.util.asNode(nodeId).cost) AS totalCostWithNodeCost,
+    [nodeId IN nodeIds | gds.util.asNode(nodeId).node_name] AS nodeNames,
+    costs,
+    nodes(path) as path
+ORDER BY index;
+
+
+
