@@ -1,6 +1,8 @@
 **Shortest Path Algorithm for Material Transportation**
-**Team: 7 Members**
-**Client: Atsys**
+
+Team: 7 Members
+
+Client: Atsys
 
 ** Project Overview **
 
